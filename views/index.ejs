@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #333; }
+        .todo-item { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 10px; 
+            border-bottom: 1px solid #eee;
+            align-items: center;
+        }
+        .form-group { margin-bottom: 20px; display: flex; gap: 10px; }
+        input[type="text"] { flex-grow: 1; padding: 10px; }
+        button { padding: 10px 20px; cursor: pointer; }
+        .delete-btn { background: #ff4444; color: white; border: none; }
+        .timestamp { color: #666; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+    <h1><%= message %></h1>
+    
+    <form action="/add" method="POST" class="form-group">
+        <input type="text" name="todo" placeholder="What needs to be done?" required>
+        <button type="submit">Add Task</button>
+    </form>
+
+    <div class="todo-list">
+        <% if (todos && todos.length > 0) { %>
+            <% todos.forEach(function(todo) { %>
+                <div class="todo-item">
+                    <div>
+                        <div><%= todo.text %></div>
+                        <div class="timestamp"><%= new Date(todo.created).toLocaleString() %></div>
+                    </div>
+                    <form action="/delete" method="POST" style="margin: 0;">
+                        <input type="hidden" name="id" value="<%= todo.id %>">
+                        <button type="submit" class="delete-btn">Delete</button>
+                    </form>
+                </div>
+            <% }); %>
+        <% } else { %>
+            <p>No tasks yet. Add one above!</p>
+        <% } %>
+    </div>
+</body>
+</html>
