@@ -1,13 +1,14 @@
 const express = require("express");
 const { readTodos, writeTodos } = require("./utils/db");
 const app = express();
+const router = express.Router();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.set("view engine", "ejs");
 
-app.get("/", async (req, res) => {
+router.get("/", async (req, res) => {
   const todos = await readTodos();
   res.render("index", {
     todos,
@@ -16,7 +17,7 @@ app.get("/", async (req, res) => {
   });
 });
 
-app.post("/add", async (req, res) => {
+router.post("/add", async (req, res) => {
   const todos = await readTodos();
   const newTodo = {
     id: Date.now().toString(),
@@ -25,20 +26,24 @@ app.post("/add", async (req, res) => {
   };
   todos.push(newTodo);
   await writeTodos(todos);
-  res.redirect("/");
+  res.redirect("back");
 });
 
-app.post("/delete", async (req, res) => {
+router.post("/delete", async (req, res) => {
   const todos = await readTodos();
   const idToDelete = req.body.id;
   const filteredTodos = todos.filter((t) => t.id !== idToDelete);
   await writeTodos(filteredTodos);
-  res.redirect("/");
+  res.redirect("back");
 });
 
-app.get("/hello", (req, res) => {
+router.get("/hello", (req, res) => {
   res.send("Hello World!");
 });
+
+// Configure the app to use the router on both paths
+app.use("/dev", router);
+app.use("/", router);
 
 app.use((req, res, next) => {
   res.status(404).json({
