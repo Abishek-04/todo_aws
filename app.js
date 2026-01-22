@@ -1,5 +1,5 @@
 const express = require("express");
-const { readTodos, writeTodos } = require("./utils/db");
+const { getTodos, addTodo, deleteTodo } = require("./utils/db");
 const app = express();
 const router = express.Router();
 
@@ -9,7 +9,7 @@ app.use(express.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
 
 router.get("/", async (req, res) => {
-  const todos = await readTodos();
+  const todos = await getTodos();
   res.render("index", {
     todos,
     message: "Todo List",
@@ -18,22 +18,18 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/add", async (req, res) => {
-  const todos = await readTodos();
   const newTodo = {
     id: Date.now().toString(),
     text: req.body.todo,
     created: new Date().toISOString(),
   };
-  todos.push(newTodo);
-  await writeTodos(todos);
+  await addTodo(newTodo);
   res.redirect("back");
 });
 
 router.post("/delete", async (req, res) => {
-  const todos = await readTodos();
   const idToDelete = req.body.id;
-  const filteredTodos = todos.filter((t) => t.id !== idToDelete);
-  await writeTodos(filteredTodos);
+  await deleteTodo(idToDelete);
   res.redirect("back");
 });
 

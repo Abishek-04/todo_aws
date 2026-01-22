@@ -1,57 +1,70 @@
-const fs = require("fs").promises;
-const fsConstants = require("fs").constants;
-const path = require("path");
-const os = require("os");
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const {
+  DynamoDBDocumentClient,
+  QueryCommand,
+  PutCommand,
+  DeleteCommand,
+} = require("@aws-sdk/lib-dynamodb");
 
-const LOCAL_DB_PATH = path.join(__dirname, "../data.json");
-const TEMP_DB_PATH = path.join(os.tmpdir(), "data.json");
+const client = new DynamoDBClient({ region: process.env.AWS_REGION || "ap-south-1" });
+const docClient = DynamoDBDocumentClient.from(client);
 
-// Cache the determined path so we don't check every time
-let activeDbPath = null;
+const TABLE_NAME = "todo";
+const PK_VALUE = "TODO"; // Partition Key value for all todos
 
-async function getDbPath() {
-  if (activeDbPath) return activeDbPath;
+async function getTodos() {
+  const command = new QueryCommand({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: "PK = :pk",
+    ExpressionAttributeValues: {
+      ":pk": PK_VALUE,
+    },
+  });
 
   try {
-    // Try to access the project root directory with Write permissions
-    // We check the directory because we might need to create the file if it doesn't exist
-    await fs.access(path.join(__dirname, "../"), fsConstants.W_OK);
-    activeDbPath = LOCAL_DB_PATH;
+    const response = await docClient.send(command);
+    return response.Items || [];
   } catch (error) {
-    // Fallback to temp directory if local is read-only (which happens in Lambda /var/task)
-    // No need to check for env vars, simply check capabilities
-    activeDbPath = TEMP_DB_PATH;
-  }
-  return activeDbPath;
-}
-
-async function ensureDbExists() {
-  const dbPath = await getDbPath();
-  try {
-    await fs.access(dbPath);
-  } catch (error) {
-    if (error.code === "ENOENT") {
-      await fs.writeFile(dbPath, "[]");
-    } else {
-      throw error;
-    }
-  }
-  return dbPath;
-}
-
-async function readTodos() {
-  const dbPath = await ensureDbExists();
-  try {
-    const data = await fs.readFile(dbPath, "utf8");
-    return JSON.parse(data);
-  } catch (error) {
+    console.error("Error fetching todos:", error);
     return [];
   }
 }
 
-async function writeTodos(todos) {
-  const dbPath = await ensureDbExists();
-  await fs.writeFile(dbPath, JSON.stringify(todos, null, 2));
+async function addTodo(todo) {
+  const item = {
+    PK: PK_VALUE,
+    SK: `ID#${todo.id}`,
+    ...todo,
+  };
+
+  const command = new PutCommand({
+    TableName: TABLE_NAME,
+    Item: item,
+  });
+
+  try {
+    await docClient.send(command);
+  } catch (error) {
+    console.error("Error adding todo:", error);
+    throw error;
+  }
 }
 
-module.exports = { readTodos, writeTodos };
+async function deleteTodo(id) {
+  const command = new DeleteCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      PK: PK_VALUE,
+      SK: `ID#${id}`,
+    },
+  });
+
+  try {
+    await docClient.send(command);
+  } catch (error) {
+    console.error("Error deleting todo:", error);
+    throw error;
+  }
+}
+
+module.exports = { getTodos, addTodo, deleteTodo };
